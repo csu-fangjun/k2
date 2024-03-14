@@ -1,0 +1,103 @@
+name: build-wheels-cuda-win64
+
+on:
+  push:
+    branches:
+      - cuda-windows
+    tags:
+      - '*'
+  workflow_dispatch:
+
+concurrency:
+  group: build-wheels-cuda-win64-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build_wheels_win64_cuda:
+    name: ${{ matrix.torch }} ${{ matrix.python-version }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        torch: ['2.2.1']
+        python-version: ['3.8']
+        # https://github.com/Jimver/cuda-toolkit/blob/master/src/links/windows-links.ts
+        # cuda: ['11.8.0', '12.1.0']
+        cuda: ['12.1.0']
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies on windows
+        shell: bash
+        run: |
+          cuda=${{ matrix.cuda }}
+          if [[ $cuda == '11.8.0' ]]; then
+            cuda=cu118
+          elif [[ $cuda == '12.1.0' ]]; then
+            cuda=cu121
+          fi
+
+          echo "cuda: $cuda"
+          torch=${{ matrix.torch }}
+
+          python3 -m pip install wheel setuptools
+          python3 -m pip install torch==${torch}+${cuda} -f https://download.pytorch.org/whl/torch_stable.html
+          python3 -m torch.utils.collect_env
+
+      - uses: Jimver/cuda-toolkit@v0.2.13
+        id: cuda-toolkit
+        with:
+          cuda: ${{ matrix.cuda }}
+
+      - name: Build wheels
+        shell: bash
+        run: |
+          python3 setup.py bdist_wheel
+          mv dist wheelhouse
+
+      - name: Display wheels
+        shell: bash
+        run: |
+          ls -lh ./wheelhouse/
+
+      - name: Upload Wheel
+        uses: actions/upload-artifact@v3
+        with:
+          name: torch-${{ matrix.torch }}-python-${{ matrix.python-version }}-windows-latest-cuda-${{ matrix.cuda }}
+          path: wheelhouse/*.whl
+
+      # https://huggingface.co/docs/hub/spaces-github-actions
+      - name: Publish to huggingface
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        uses: nick-fields/retry@v2
+        with:
+          max_attempts: 20
+          timeout_seconds: 200
+          shell: bash
+          command: |
+            git config --global user.email "csukuangfj@gmail.com"
+            git config --global user.name "Fangjun Kuang"
+
+            rm -rf huggingface
+            export GIT_LFS_SKIP_SMUDGE=1
+
+            git clone https://huggingface.co/csukuangfj/k2 huggingface
+            cd huggingface
+            git pull
+
+            mkdir -p windows-cuda
+            cp -v ../wheelhouse/*.whl ./windows-cuda
+            git status
+            git lfs track "*.whl"
+            git add .
+            git commit -m "upload windows-cuda wheel for torch ${{ matrix.torch }} python ${{ matrix.python-version }} cuda ${{ matrix.cuda }}"
+            git push https://csukuangfj:$HF_TOKEN@huggingface.co/csukuangfj/k2 main
