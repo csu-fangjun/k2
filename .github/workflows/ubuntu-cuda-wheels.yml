@@ -2,6 +2,9 @@ name: build-wheels-cuda-ubuntu
 
 on:
   push:
+    branches:
+      # - wheel
+      - torch-2.7.0
     tags:
       - '*'
   workflow_dispatch:
