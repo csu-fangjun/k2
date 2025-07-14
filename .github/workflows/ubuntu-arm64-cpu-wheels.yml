@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - wheel
-      - all-wheels
     tags:
       - '*'
   workflow_dispatch:
