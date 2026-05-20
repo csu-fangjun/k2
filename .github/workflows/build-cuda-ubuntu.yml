@@ -38,9 +38,9 @@ on:
       - 'k2/python/**'
   workflow_dispatch:
 
-concurrency:
-  group: build-cuda-ubuntu-${{ github.ref }}
-  cancel-in-progress: true
+# concurrency:
+#   group: build-cuda-ubuntu-${{ github.ref }}
+#   cancel-in-progress: true
 
 env:
   BUILD_TYPE: Release

@@ -365,7 +365,8 @@ def generate_build_matrix(
         "2.12.0": {
             "python-version": ["3.10", "3.11", "3.12", "3.13", "3.14"],
             "cuda": (
-                ["12.6", "13.0", "13.2"]  # default 13.0
+                #  ["12.6", "13.0", "13.2"]  # default 13.0
+                ["13.2"]  # default 13.0
                 if not for_windows
                 else ["12.6.2", "13.0.1", "13.2.0"]
             ),
